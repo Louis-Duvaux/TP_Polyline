@@ -55,8 +55,9 @@ const polylineMachine = setup({
         },
         // Abandonner le tracé de la polyline
         abandon: () => {
-            // Supprimer la variable polyline :
-            
+            polyline.remove();
+            polyline = undefined;
+            layer.batchDraw();
         },
         // Supprimer le dernier point de la polyline
         removeLastPoint: () => {
@@ -71,21 +72,51 @@ const polylineMachine = setup({
     guards: {
         // On peut encore ajouter un point
         pasPlein: () => {
-            // Retourner vrai si la polyline a moins de 10 points
-            // attention : dans le tableau de points, chaque point est représenté par 2 valeurs (coordonnées x et y)
-            
+            // Le dernier point est provisoire : il ne compte pas dans MAX_POINTS.
+            return polyline.points().length / 2 < MAX_POINTS + 1;
         },
         // On peut enlever un point
         plusDeDeuxPoints: () => {
             // Deux coordonnées pour chaque point, plus le point provisoire
-            return polyline.points().length > 6;
+            return polyline.points().length >= 6;
         },
     },
 }).createMachine({
     id: "polyLine",
     initial: "idle",
     states: {
-        idle: {},
+        idle: {
+            on: {
+                MOUSECLICK: {
+                    target: "drawing",
+                    actions: ["createLine"],
+                },
+            },
+        },
+        drawing: {
+            on: {
+                MOUSEMOVE: {
+                    actions: ["setLastPoint"],
+                },
+                MOUSECLICK: {
+                    guard: "pasPlein",
+                    actions: ["addPoint"],
+                },
+                Backspace: {
+                    guard: "plusDeDeuxPoints",
+                    actions: ["removeLastPoint"],
+                },
+                Enter: {
+                    guard: "plusDeDeuxPoints",
+                    target: "idle",
+                    actions: ["saveLine"],
+                },
+                Escape: {
+                    target: "idle",
+                    actions: ["abandon"],
+                },
+            },
+        },
     },
 });
 
